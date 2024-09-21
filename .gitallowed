@@ -1,0 +1,13 @@
+# doc
+README.md
+go.mod
+go.sum
+internal/infra/utils/
+init/
+configs/defaults/
+configs/confd/templates/
+configs/confd/conf.d/
+
+# ignore pattern
+ id-token
+ contents
