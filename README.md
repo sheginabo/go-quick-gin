@@ -16,6 +16,11 @@ These instructions will get you a copy of the project up and running on your loc
 - [Go](https://golang.org/dl/) (Version 1.23 or later)
 - [Docker](https://www.docker.com/get-started)
 
+### Clone (make sure branch is quick-websocket-chat)
+```sh
+git clone -b quick-websocket-chat https://github.com/sheginabo/go-quick-gin.git
+```
+
 ### Running Locally
 
 To run the project locally for debugging purposes, follow these steps:
