@@ -18,9 +18,13 @@ type WebSocketHandler struct {
 	Stop        context.CancelFunc
 }
 
+var totalConnections int
+var maxTotalConnections = 15 // 設定最大總連線數
+var totalConnectionsMutex sync.Mutex
+
 // 連線池
 var clients = make(map[*websocket.Conn]bool)
-var broadcast = make(chan []byte)
+var broadcast = make(chan []byte, 100)
 var clientsMutex sync.Mutex // 保護 clients map
 
 var activeConnections = make(map[string]int)
@@ -124,28 +128,65 @@ func checkOrigin(r *http.Request) bool {
 		return false
 	}
 
-	// 增加計數器
+	// 總連線數限制
+	totalConnectionsMutex.Lock()
+	defer totalConnectionsMutex.Unlock()
+
+	if totalConnections >= maxTotalConnections {
+		// 超過最大連線數
+		log.Warn().Msgf("Connection limit reached, refusing connection from IP: %s", clientIP)
+		return false
+	}
+
+	// 計數器們
 	activeConnections[clientIP]++
+	totalConnections++
+
 	return true
 }
 
-// 处理广播的 goroutine
+//func handleBroadcast() {
+//	for {
+//		msg := <-broadcast
+//		// 廣播給所有連線進來的客戶端
+//		clientsMutex.Lock()
+//		for client := range clients {
+//			err := client.WriteMessage(websocket.TextMessage, msg)
+//			if err != nil {
+//				log.Error().Err(err).Msg("Could not write message to client")
+//				err := client.Close()
+//				if err != nil {
+//					return
+//				}
+//				delete(clients, client)
+//			}
+//		}
+//		clientsMutex.Unlock()
+//	}
+//}
+
 func handleBroadcast() {
 	for {
 		msg := <-broadcast
-		// 廣播給所有連線進來的客戶端
 		clientsMutex.Lock()
+		clientsCopy := make(map[*websocket.Conn]bool)
 		for client := range clients {
-			err := client.WriteMessage(websocket.TextMessage, msg)
-			if err != nil {
-				log.Error().Err(err).Msg("Could not write message to client")
-				err := client.Close()
-				if err != nil {
-					return
-				}
-				delete(clients, client)
-			}
+			clientsCopy[client] = true
 		}
 		clientsMutex.Unlock()
+
+		// 廣播給所有連線進來的客戶端
+		for client := range clientsCopy {
+			go func(client *websocket.Conn) {
+				err := client.WriteMessage(websocket.TextMessage, msg)
+				if err != nil {
+					log.Error().Err(err).Msg("Could not write message to client")
+					clientsMutex.Lock()
+					client.Close()
+					delete(clients, client)
+					clientsMutex.Unlock()
+				}
+			}(client)
+		}
 	}
 }
