@@ -1,14 +1,27 @@
-version: '3.8'
-
 services:
-  go-quick-gin:
-    build:
-      context: .
-      dockerfile: Dockerfile
+#  go-quick-gin:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#    ports:
+#      - '8080:8080'
+#    environment:
+#      - GIN_MODE=release
+#    restart: unless-stopped
+#    volumes:
+#      - ./logs:/app/logs
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb_container
     ports:
-      - '8080:8080'
+      - "27017:27017"
     environment:
-      - GIN_MODE=release
-    restart: unless-stopped
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_DATABASE: chatdb
     volumes:
-      - ./logs:/app/logs
+      - mongo_data:/data/db
+      - ./build/local/docker/mongo/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js
+
+volumes:
+  mongo_data:

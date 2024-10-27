@@ -23,7 +23,11 @@ To run the project locally for debugging purposes, follow these steps:
 1. **準備開發環境**
    use `docker-compose.yaml`：
    ```sh
-   docker-compose -p {repoName} up -d
+   docker-compose -p go-quick-gin up -d
+   ```
+   If you want a very clean build, use the following command
+   ```bash
+   docker-compose build --no-cache && docker-compose -p go-quick-gin up --force-recreate -d
    ```
 
 2. Download the Go modules required by the project:
@@ -39,4 +43,10 @@ To run the project locally for debugging purposes, follow these steps:
 4. Run the application:
     ```sh
     go run ./cmd/main.go
+    ```
+
+### DEBUG
+1. **check MongoDB**
+    ```sh
+    mongosh -u root -p example --authenticationDatabase admin
     ```

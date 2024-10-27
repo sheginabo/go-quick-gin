@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chatroom</title>
+</head>
+<body>
+<h1>Online Chatroom</h1>
+<div id="messages"></div>
+<input id="message" type="text">
+<button onclick="sendMessage()">Send</button>
+
+<script>
+    const socket = new WebSocket("ws://localhost:8080/ws");
+
+    socket.onmessage = function(event) {
+        const messages = document.getElementById("messages");
+        messages.innerHTML += `<p>${event.data}</p>`;
+    };
+
+    function sendMessage() {
+        const messageInput = document.getElementById("message");
+        socket.send(messageInput.value);
+        messageInput.value = "";
+    }
+</script>
+</body>
+</html>

@@ -8,6 +8,7 @@ import (
 	"github.com/sheginabo/go-quick-gin/internal/presentation/handlers"
 	"github.com/sheginabo/go-quick-gin/internal/presentation/middlewares"
 	"github.com/spf13/viper"
+	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/sync/errgroup"
 	"net/http"
 	"time"
@@ -16,32 +17,42 @@ import (
 type Module struct {
 	Router *gin.Engine
 	Server *http.Server
+	Stop   context.CancelFunc
 }
 
 type AllHandlers struct {
-	InternalHandler *handlers.InternalHandler
+	InternalHandler  *handlers.InternalHandler
+	WebSocketHandler *handlers.WebSocketHandler
 }
 
-func NewModule() *Module {
+func NewModule(stop context.CancelFunc, mongoClient *mongo.Client) *Module {
 	//r := gin.Default()
 	r := gin.New()
-	r.Use(gin.Recovery())
-	r.Use(middlewares.Logger()) // good custom logger middleware
+	//r.Use(gin.Recovery())
+	r.Use(middlewares.CustomRecovery()) // good custom recovery middleware
+	r.Use(middlewares.Logger())         // good custom logger middleware
+
+	//_, b, _, _ := runtime.Caller(0)
+	//htmlPath := filepath.Join(filepath.Dir(b), "../../web/template/*.html")
+	htmlPath := "web/template/*.html"
+	r.LoadHTMLGlob(htmlPath) // load html templates
 
 	gin.ForceConsoleColor()
 
 	ginModule := &Module{
 		Router: r,
+		Stop:   stop,
 	}
 
-	ginModule.SetupRoute(ginModule.NewHandlers())
+	ginModule.SetupRoute(ginModule.NewHandlers(stop, mongoClient))
 
 	return ginModule
 }
 
-func (module *Module) NewHandlers() AllHandlers {
+func (module *Module) NewHandlers(stop context.CancelFunc, mongoClient *mongo.Client) AllHandlers {
 	return AllHandlers{
-		InternalHandler: handlers.NewInternalHandler(),
+		InternalHandler:  handlers.NewInternalHandler(),
+		WebSocketHandler: handlers.NewWebSocketHandler(stop, mongoClient),
 	}
 }
 
@@ -54,8 +65,13 @@ func (module *Module) SetupRoute(allHandlers AllHandlers) {
 			"c_ClientIP":      "ip:" + c.ClientIP(),
 		})
 	})
+	module.Router.GET("/test/websocket", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index.html", nil)
+	})
 	// basic handler
 	module.Router.POST("/hello", allHandlers.InternalHandler.PostHello)
+	// websocket handler
+	module.Router.GET("/ws", allHandlers.WebSocketHandler.HandleWebSocket)
 }
 
 func enableCors(h http.Handler) http.Handler {
